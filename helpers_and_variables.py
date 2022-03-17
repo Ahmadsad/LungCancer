@@ -31,7 +31,7 @@ __step2_suffixes = ("dd", "gd", "nn", "dt", "gt", "kt", "tt")
 __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 
 # remove question numbers like br_1, br2...
-__step4_suffix = ("br", "co", "sl", "pa")
+__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing")
 
 TAG_RE = re.compile(r'<[^>]+>')
 
@@ -112,13 +112,14 @@ def stem(word):
                 word = word[:-1]
             break
             
-    # remove question numbers like br_1, br2...
+    # remove question numbers like br_1, br2... and other from suffix 4
     for suffix in __step4_suffix:
         if suffix in word:
             indx = word.index(suffix)
             if word == suffix or has_numbers(word):
                 word = ""
                 break;
+
     return word
 
 def has_numbers(inputString): 
@@ -130,6 +131,13 @@ def remove_digits_at_start(inputString):
             inputString = inputString[inputString.index(" ")+1:]
     return inputString
 
+def remove_decimals_from_digits(inputString):
+    if "." in inputString:
+        idx = inputString.find(".")
+        if has_numbers(inputString[idx+1:idx+2]):
+            inputString = inputString[0:idx] + inputString[idx+2:]
+    return inputString
+    
 def get_exL_df(stringPath, password=None, sheetNum=0):
     if password is not None:
         xlwb = xlApp.Workbooks.Open(stringPath, False, True, None, password)
@@ -141,8 +149,9 @@ def get_exL_df(stringPath, password=None, sheetNum=0):
 
 def get_cleanedCol_rowData_df(rawDataFrame, columns_toBe_removed=None):
     if columns_toBe_removed is None:
-        columns_toBe_removed = ["Diagnos2", "Othercancer","Mutation_FULL", "Stage_gr", "DiagnosticInvestigation","PADdatum",
-#                 "STUDY_1","InterviewDate", "Death_date", "DEATH_date_final", "Date_Background", "Intdate_Background",
+        columns_toBe_removed = ["Diagnos2", "Othercancer","Mutation_FULL", "Stage_gr", "DiagnosticInvestigation",
+                                "PADdatum", "Death_date", "DEATH_date_final", "STUDY_1", "Date_Background",
+#                                 "InterviewDate",  "Intdate_Background",
                                 "Lungcancer_Num", "ALL_HISTOLOGIES_ScLC_NScLC_NE", "ALL_HISTOLOGIES", 
                                 "ALL_HISTOLOGIES_CompleteOtherCancer", "Other_cancer", "Metastases", 
                                 "NoCancer_AdvancedStage_Ordinal", "LC_LCNEC_ejLC_ALL_2017control", "Sensitivity_LC_LCNEC_MM_ejLC", 
@@ -160,7 +169,7 @@ def get_dates_in_days(rawDataFrame, referens_date_col=None):
         referens_date_col = list(rawDataFrame["InterviewDate"])
     else:
         referens_date_col = list(rawDataFrame[referens_date_col])
-
+    
     date_cols = get_cols_with_dates(rawDataFrame)
     # put the referense last, to be subtracted lastly
     if referens_date_col[0] in date_cols:
@@ -188,8 +197,7 @@ def get_dates_in_days(rawDataFrame, referens_date_col=None):
         for idx in range(1,len(rawDataFrame[date_col])):
             if dates_list[idx] != '#NULL!':
                 try:
-                    dates_list[idx] =  referens_dates_list[idx] - dates_list[idx];
-
+                    dates_list[idx] =  (referens_dates_list[idx] - dates_list[idx]).days;
                 except:
                     dates_list[idx] = dates_list[idx]
 
@@ -297,9 +305,11 @@ def get_cleaned_list_of_strings(listOfStrings, stemm = False, stemm_by_nltk=Fals
         if text is None: 
             text = 'No/missing'
         text = text.replace('/',' ').replace('…','').replace('”','').replace('_',' ')
-        words = text.lower().translate(str.maketrans('', '', punctations))
-        words = remove_digits_at_start(words)
+        words = remove_decimals_from_digits(text)
+        words = words.lower().translate(str.maketrans('', '', punctations))
+        
         words = words.split()
+        words = remove_digits_at_start(words)
         words_without_stopwords = [word for word in words if word not in stopwords]
         words = words_without_stopwords
         if stemm:
@@ -436,7 +446,7 @@ def write_dict_as_json_file(dict_toBe_saved, file_path = None):
     # close file
     f.close()
     
-def read_dict_from_json_file(file_path=None):
+def load_dict_from_json_file(file_path=None):
     import json
     if file_path is None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/dict.json"
@@ -447,3 +457,21 @@ def read_dict_from_json_file(file_path=None):
     js = json.loads(data)
     return js
 
+def write_list_as_json_file(list_toBe_saved, file_path=None):
+    import json
+    if file_path==None:
+        file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels.json"
+        
+    with open(file_path, 'w') as f:
+        f.write(json.dumps(list_toBe_saved))
+
+def load_list_from_json_file(file_path=None):
+    import json
+    if file_path==None:
+        file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels.json"
+
+    with open(file_path, 'r') as f:
+        loaded_list = json.loads(f.read())
+    
+    return loaded_list
+    

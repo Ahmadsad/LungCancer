@@ -2,6 +2,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import csr_matrix
+from sklearn.model_selection import cross_val_score
 
 from sklearn.metrics import classification_report
 from lime import lime_tabular
@@ -48,3 +49,7 @@ def get_shap_kernel_explainer_and_values(cls, training_data, test_data):
     shap_values = explainer.shap_values(test_data)
     return (explainer, shap_values)
 
+def get_cross_validation_scores(clf, X_train, Y_train, cv=5):
+    scores = cross_val_score(clf, X_train, Y_train, cv=5)
+    print("%0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
+    return scores;
