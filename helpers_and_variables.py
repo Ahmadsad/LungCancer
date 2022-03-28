@@ -11,7 +11,6 @@ import re
 
 xlApp = win32.Dispatch("Excel.Application")
 
-
 stopwords = stopwords.words('swedish')
 punctations = string.punctuation
 
@@ -30,8 +29,9 @@ __step1_2_suffixes = ("vuxen", "benägen","mogen","omogen","abdomen",
 __step2_suffixes = ("dd", "gd", "nn", "dt", "gt", "kt", "tt")
 __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 
-# remove question numbers like br_1, br2...
-__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing")
+# remove question numbers like br_1, br2 and other words that does not add any meaning
+__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum",
+ 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'alternativ')
 
 TAG_RE = re.compile(r'<[^>]+>')
 
@@ -137,98 +137,20 @@ def remove_decimals_from_digits(inputString):
         if has_numbers(inputString[idx+1:idx+2]):
             inputString = inputString[0:idx] + inputString[idx+2:]
     return inputString
-    
+
+
+
+"""
+Function for getting data frames and cleaning/removing patients and features
+"""
 def get_exL_df(stringPath, password=None, sheetNum=0):
     if password is not None:
         xlwb = xlApp.Workbooks.Open(stringPath, False, True, None, password)
     else:
         xlwb = xlApp.Workbooks.Open(stringPath, False, True, None)
-    rowDataFrame = pd.DataFrame(xlwb.Sheets(sheetNum).UsedRange())
-    rowDataFrame.columns = rowDataFrame.iloc[0,:]
-    return rowDataFrame
-
-def get_cleanedCol_rowData_df(rawDataFrame, columns_toBe_removed=None):
-    if columns_toBe_removed is None:
-        columns_toBe_removed = ["Diagnos2", "Othercancer","Mutation_FULL", "Stage_gr", "DiagnosticInvestigation",
-                                "PADdatum", "Death_date", "DEATH_date_final", "STUDY_1", "Date_Background",
-#                                 "InterviewDate",  "Intdate_Background",
-                                "Lungcancer_Num", "ALL_HISTOLOGIES_ScLC_NScLC_NE", "ALL_HISTOLOGIES", 
-                                "ALL_HISTOLOGIES_CompleteOtherCancer", "Other_cancer", "Metastases", 
-                                "NoCancer_AdvancedStage_Ordinal", "LC_LCNEC_ejLC_ALL_2017control", "Sensitivity_LC_LCNEC_MM_ejLC", 
-                                "BAKGRUND", "BREATHE", "COUGH", "PHLEGM", "PAIN_ACHES_DISCOMFORT", "FATIGUE", "VOICE",
-                                "APPETITE_TASTE_EATING", "SMELL", "FEVER", "OTHER_CHANGES", "CURRENT_HEALTH_EORTC"]
-        try:
-            rawDataFrame = rawDataFrame.drop(labels=columns_toBe_removed, axis=1, inplace=False)
-        except:
-            rawDataFrame.columns = rawDataFrame.iloc[0,:]
-            rawDataFrame = rawDataFrame.drop(labels = columns_toBe_removed, axis=1, inplace=False)
-        return rawDataFrame
-
-def get_dates_in_days(rawDataFrame, referens_date_col=None):
-    if referens_date_col is None:
-        referens_date_col = list(rawDataFrame["InterviewDate"])
-    else:
-        referens_date_col = list(rawDataFrame[referens_date_col])
-    
-    date_cols = get_cols_with_dates(rawDataFrame)
-    # put the referense last, to be subtracted lastly
-    if referens_date_col[0] in date_cols:
-        date_cols.remove(referens_date_col[0])
-        date_cols.insert(len(date_cols), referens_date_col[0])
-
-    # get corretly formed date list as reference
-    referens_dates_list = get_converted_toCorrect_form_datesList(referens_date_col);
-
-    for date_col in date_cols:
-        
-        if date_col == "PADdatum":
-            current_col = list(rawDataFrame['PADdatum'][1:].astype('str'))
-            for idx in range(0, len(current_col)):
-                tmp = ""
-                for x in current_col[idx].split():
-                    if x.isdigit():
-                        tmp = tmp + str(x)
-                current_col[idx] = tmp    
-            rawDataFrame[date_col][1:] = current_col
-            
-        # get a specific date column in correct form and as list
-        dates_list = get_converted_toCorrect_form_datesList(list(rawDataFrame[date_col]));
-
-        for idx in range(1,len(rawDataFrame[date_col])):
-            if dates_list[idx] != '#NULL!':
-                try:
-                    dates_list[idx] =  (referens_dates_list[idx] - dates_list[idx]).days;
-                except:
-                    dates_list[idx] = dates_list[idx]
-
-        rawDataFrame[date_col] = dates_list          
-    return rawDataFrame
-    
-def get_cols_with_dates(rawDataFrame, num_cols=None):
-    # other columns with dates but not mentioned in the column name or description
-    date_cols = ["Breathe_46", "V3", "V3_Ph_1", "V3_Pain", "V3_Fa_1", "V3_Vo", "V3_Sm", "Fever_2", "Fever_5", "Fever_8",
-                        "Fever_11", "Fever_14", "Fever_17", "Fever_20", "Fever_23", "Fever_24", "Otherchanges_2", "Otherchanges_5", 
-                        "Otherchanges_8", "Otherchanges_11", "Otherchanges_14", "Otherchanges_17", "Otherchanges_20", "Otherchanges_23",
-                        "Otherchanges_26", "Otherchanges_30", "Otherchanges_34", "Otherchanges_38"]
-    for col in rawDataFrame.columns:
-        if ('date' in col.lower() or 'datum' in col.lower()):
-            date_cols.append(col)    
-    if num_cols is None:
-        return date_cols
-    else:
-        return date_cols[0:num_cols]
-    
-def get_converted_toCorrect_form_datesList(dates_list):
-    dates_list = list(dates_list)
-    for idx in range(1,len(dates_list)):
-        if dates_list[idx] != "#NULL!":
-            try:
-                dates_list[idx] = pd.to_datetime(dates_list[idx], format='%y%m%d', errors='ignore');
-                dates_list[idx] = pd.to_datetime(dates_list[idx], errors='ignore');
-            except:
-                dates_list[idx] = dates_list[idx]
-    return dates_list
-    
+    dataFrame = pd.DataFrame(xlwb.Sheets(sheetNum).UsedRange())
+    dataFrame.columns = dataFrame.iloc[0,:]
+    return dataFrame
 
 def get_cleaned_dataInfo_df(stringPath):
     dataInfoDF = get_exL_df(stringPath = stringPath, sheetNum = 1)
@@ -247,20 +169,105 @@ def get_cleaned_katInfo_df(stringPath):
     katInfoDF.drop([0,1], axis=0, inplace=True)
     return katInfoDF
 
-def get_labels_and_indicesOfUnlabeledPatients(rowDataFrame):
-    labels = list(rowDataFrame['Lungcancer_Num'])[1:]
+def get_labels_and_indices_unlabeled_patients(rawDataFrame):
+    labels = list(rawDataFrame['Lungcancer_Num'])[1:]
+    study1_labels = list(rawDataFrame['STUDY_1'])[1:]
+    
     label_list = list()
     removed_indices = list()
     for ind in range(0, len(labels)):
         value = labels[ind]
-        if value == 1.0 or value == 2.0:
+        study1_value = study1_labels[ind]
+        if ((value == 1.0 or value == 2.0) and study1_value == 1):
             label_list.append(value)
         else:
             removed_indices.append(ind+1)
-            
-    rowDataFrame = rowDataFrame.drop(labels=removed_indices, axis=0, inplace=False)
 
-    return rowDataFrame, label_list, removed_indices
+    rawDataFrame = rawDataFrame.drop(labels=removed_indices, axis=0, inplace=False)
+    return rawDataFrame, label_list, removed_indices
+
+def get_dataframe_without_cols(dataFrame, columns_tobe_removed=None, remove_cols_with_dates=False):
+    if columns_tobe_removed is None:
+        columns_tobe_removed = ["Diagnos2", "Othercancer","Mutation_FULL", "Stage_gr", "DiagnosticInvestigation",
+                                "PADdatum", "Death_date", "DEATH_date_final", "STUDY_1", "Date_Background",
+                                "Lungcancer_Num", "ALL_HISTOLOGIES_ScLC_NScLC_NE", "ALL_HISTOLOGIES", 
+                                "ALL_HISTOLOGIES_CompleteOtherCancer", "Other_cancer", "Metastases", 
+                                "NoCancer_AdvancedStage_Ordinal", "LC_LCNEC_ejLC_ALL_2017control", "Sensitivity_LC_LCNEC_MM_ejLC", 
+                                "BAKGRUND", "BREATHE", "COUGH", "PHLEGM", "PAIN_ACHES_DISCOMFORT", "FATIGUE", "VOICE",
+                                "APPETITE_TASTE_EATING", "SMELL", "FEVER", "OTHER_CHANGES", "CURRENT_HEALTH_EORTC"]
+        if remove_cols_with_dates:
+                columns_tobe_removed = columns_tobe_removed + get_cols_with_dates(dataFrame)
+        try:
+            dataFrame = dataFrame.drop(labels=columns_tobe_removed, axis=1, inplace=False)
+        except: # if the labels of the columns in the data frame are not corrected, see first raw, set first raw as column names
+            dataFrame.columns = dataFrame.iloc[0,:]
+            dataFrame = dataFrame.drop(labels = columns_tobe_removed, axis=1, inplace=False)
+        return dataFrame
+
+def get_dates_in_days(rawDataFrame, referens_date_col=None):
+    if referens_date_col is None:
+        referens_date_col = list(rawDataFrame["InterviewDate"])
+    else:
+        referens_date_col = list(rawDataFrame[referens_date_col])
+    
+    date_cols = get_cols_with_dates(rawDataFrame)
+    # put the referense last, to be subtracted lastly
+    if referens_date_col[0] in date_cols:
+        date_cols.remove(referens_date_col[0])
+        date_cols.insert(len(date_cols), referens_date_col[0])
+
+    # get corretly formed date list as reference
+    referens_dates_list = get_converted_to_correct_form_datesList(referens_date_col);
+
+    for date_col in date_cols:
+        
+        if date_col == "PADdatum":
+            current_col = list(rawDataFrame['PADdatum'][1:].astype('str'))
+            for idx in range(0, len(current_col)):
+                tmp = ""
+                for x in current_col[idx].split():
+                    if x.isdigit():
+                        tmp = tmp + str(x)
+                current_col[idx] = tmp    
+            rawDataFrame[date_col][1:] = current_col
+            
+        # get a specific date column in correct form and as list
+        dates_list = get_converted_to_correct_form_datesList(list(rawDataFrame[date_col]));
+
+        for idx in range(1,len(rawDataFrame[date_col])):
+            if dates_list[idx] != '#NULL!':
+                try:
+                    dates_list[idx] =  (referens_dates_list[idx] - dates_list[idx]).days;
+                except:
+                    dates_list[idx] = dates_list[idx]
+
+        rawDataFrame[date_col] = dates_list          
+    return rawDataFrame
+    
+def get_cols_with_dates(rawDataFrame, num_cols=None):
+    # other columns with dates but word date/datum not mentioned in the column name or description
+    date_cols = ["Breathe_46", "V3", "V3_Ph_1", "V3_Pain", "V3_Fa_1", "V3_Vo", "V3_Sm", "Fever_2", "Fever_5", "Fever_8",
+                        "Fever_11", "Fever_14", "Fever_17", "Fever_20", "Fever_23", "Fever_24", "Otherchanges_2", "Otherchanges_5", 
+                        "Otherchanges_8", "Otherchanges_11", "Otherchanges_14", "Otherchanges_17", "Otherchanges_20", "Otherchanges_23",
+                        "Otherchanges_26", "Otherchanges_30", "Otherchanges_34", "Otherchanges_38"]
+    for col in rawDataFrame.columns:
+        if ('date' in col.lower() or 'datum' in col.lower()):
+            date_cols.append(col)    
+    if num_cols is None:
+        return date_cols
+    else: # for experimenting in case you dont want to spend too much time testing all cols
+        return date_cols[0:num_cols]
+    
+def get_converted_to_correct_form_datesList(dates_list):
+    dates_list = list(dates_list)
+    for idx in range(1,len(dates_list)):
+        if dates_list[idx] != "#NULL!":
+            try:
+                dates_list[idx] = pd.to_datetime(dates_list[idx], format='%y%m%d', errors='ignore');
+                dates_list[idx] = pd.to_datetime(dates_list[idx], errors='ignore');
+            except:
+                dates_list[idx] = dates_list[idx]
+    return dates_list
 
 def get_dict_of_dataInfoDF(dataFrame):
     _dict = dict()
@@ -359,7 +366,14 @@ def get_tokenized_strings_by_nltk(listOfStrings):
 
     return output_words_after_tokenize
     
-def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=None, clear_missings_or_Non=False):
+def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=None,
+                                  clear_missings_or_Non=False, clear_ques_with_negative_answeres=False):
+    """
+    Extract a dictionery with keys as patient id and value as another dictionary with {key:question, value:answer}
+    main_dict length is equal to number of patient, length of an element in main_dict is equal to number of features for this patient
+    clear_missings_or_Non --> clears features where the answers are missing 
+    clear_ques_with_negative_answeres --> clears features where the answers are negative, No/Nej
+    """
     main_dict = dict()
     tmp_patient_dict = dict()
    
@@ -367,23 +381,24 @@ def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=Non
     dict_of_dataInfo = get_dict_of_dataInfoDF(dataInfoDF)
     
     missing_answer = False   
+    negative_answer = False
     list_count_removed_features = list()
     
     if amount_data is None or amount_data > len(raw_DF):
         n = len(raw_DF)
     else:
         n = amount_data    
-    # dont need patient number as feature
+    # dont need patient number as feature start at 1
     features = list(raw_DF.columns)[1:]
+    # start the loop at 1 to account for the first row with labels and ques names
     for patient_ind in range(1, n):
         ind_ques = 0
         count_removed_features = 0 
         
         ind_ques = 1
-        for feature in features:   #range(1, len(raw_DF.iloc[patient_ind,:])):
+        for feature in features:
             # the answer of the patient
             answer = raw_DF.iloc[patient_ind][feature]
-            # item = raw_DF.iloc[patient_ind,ind_ques]
             # the question's text instead of only numbers or question name
             value =  dict_of_dataInfo[feature] #  list_of_questions[ind_ques]
             # Remove tags, such as html tags
@@ -398,6 +413,8 @@ def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=Non
                     answer = remove_tags(ques_dict[str(int(answer))])
                 else: # if missing answer replace with NO/missing
                     answer = "No/missing"
+            
+            # clear questions with missing answers
             if (
                 answer == '#N/A'or answer == '#N/A!' or 
                 answer == '#NULL' or  answer == '#NULL!' or 
@@ -408,35 +425,65 @@ def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=Non
             ):
                 answer = "No/missing"
                 missing_answer = True
-            # clear questions with no answers, which includes modules such as, Breath, Cough (empty answers, used to seperat modules)
             if clear_missings_or_Non and missing_answer:
                 missing_answer = False
                 count_removed_features = count_removed_features + 1
                 continue
+                
+            # clear questions with no as answers                
+            if (
+                answer == 'No' or answer =='no' or
+                answer == 'Nej' or answer == 'nej' 
+            ):
+                negative_answer = True      
+            if clear_ques_with_negative_answeres and negative_answer:
+                negative_answer = False
+                count_removed_features = count_removed_features + 1
+                continue
+                
             value = value + ": " + str(answer)
             tmp_patient_dict[feature] = value
             ind_ques = ind_ques + 1
         main_dict[str(int(raw_DF.iloc[patient_ind,0]))] = tmp_patient_dict
         tmp_patient_dict = dict()
         
-        # add 2 for the labels at first rows and since pandas aounts from 1 already
-        list_count_removed_features.append((patient_ind+2, count_removed_features))
+        # add 1 for disregarding the first row, in 
+        list_count_removed_features.append((patient_ind, count_removed_features))
         
     return main_dict, list_count_removed_features
 
-def get_data_list_from_main_dict(main_dict, stemm=True):
+def get_data_list_from_main_dict(main_dict, stemm=True, return_corpus_sent=False, return_corpus_token=False):
+    from nltk import word_tokenize
     data_list = list()
+    corpus_sentenses = list()
+    corpus_sentenses_tokenized = list()
+
     for key in main_dict.keys():
         patient_text = list(main_dict[key].values())
         patient_cleaned_text = get_cleaned_list_of_strings(patient_text, stemm=stemm)
+        
+        if return_corpus_sent or return_corpus_token:
+            for sent in patient_cleaned_text:
+                if return_corpus_sent:
+                    corpus_sentenses.append(sent)
+                    
+                if return_corpus_token:
+                    temp = list()
+                    for word in word_tokenize(sent):
+                            temp.append(word)
+                    corpus_sentenses_tokenized.append(temp)
+                    
         tmp_patient_text = ' '.join(patient_cleaned_text)
         data_list.append(tmp_patient_text)
-    return data_list
-        
+    return data_list, corpus_sentenses, corpus_sentenses_tokenized
+
 def write_dict_as_json_file(dict_toBe_saved, file_path = None):
     import json
+    
     if file_path is None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/dict.json"
+    else:
+        file_path = file_path + ".json"
     # create json object from dictionary
     obj = json.dumps(dict_toBe_saved)
     # open file for writing, "w" 
@@ -450,6 +497,8 @@ def load_dict_from_json_file(file_path=None):
     import json
     if file_path is None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/dict.json"
+    else:
+        file_path = file_path + ".json"
     # reading the data from the file
     with open(file_path) as f:
         data = f.read()
@@ -461,6 +510,8 @@ def write_list_as_json_file(list_toBe_saved, file_path=None):
     import json
     if file_path==None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels.json"
+    else:
+        file_path = file_path + ".json"
         
     with open(file_path, 'w') as f:
         f.write(json.dumps(list_toBe_saved))
@@ -469,7 +520,8 @@ def load_list_from_json_file(file_path=None):
     import json
     if file_path==None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels.json"
-
+    else:
+        file_path = file_path + ".json"
     with open(file_path, 'r') as f:
         loaded_list = json.loads(f.read())
     
