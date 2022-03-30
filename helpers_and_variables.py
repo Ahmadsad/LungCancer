@@ -1,3 +1,4 @@
+import nltk
 from nltk.corpus import stopwords
 import pandas as pd
 from nltk.stem import SnowballStemmer
@@ -11,7 +12,9 @@ import re
 
 xlApp = win32.Dispatch("Excel.Application")
 
+# nltk.download('stopwords')
 stopwords = stopwords.words('swedish')
+
 punctations = string.punctuation
 
 __vowels = "aeiouy\xE4\xE5\xF6"
