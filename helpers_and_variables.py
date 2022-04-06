@@ -9,10 +9,14 @@ import string
 import numpy as np
 import re
 
+"""
+You might need to run these two guys once to download stopwords and punktations
+"""
+# nltk.download('stopwords')
+# nltk.download('punkt')
 
 xlApp = win32.Dispatch("Excel.Application")
 
-# nltk.download('stopwords')
 stopwords = stopwords.words('swedish')
 
 punctations = string.punctuation
@@ -33,8 +37,8 @@ __step2_suffixes = ("dd", "gd", "nn", "dt", "gt", "kt", "tt")
 __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 
 # remove question numbers like br_1, br2 and other words that does not add any meaning
-__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum",
- 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'alternativ')
+__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm'
+ 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'dat', 'lu', '1lu', '9lu')
 
 TAG_RE = re.compile(r'<[^>]+>')
 
@@ -139,6 +143,8 @@ def remove_decimals_from_digits(inputString):
         idx = inputString.find(".")
         if has_numbers(inputString[idx+1:idx+2]):
             inputString = inputString[0:idx] + inputString[idx+2:]
+            if '00' in inputString:
+                inputString = inputString.replace('00','0')
     return inputString
 
 
@@ -314,7 +320,7 @@ def get_cleaned_list_of_strings(listOfStrings, stemm = False, stemm_by_nltk=Fals
     for text in listOfStrings:
         if text is None: 
             text = 'No/missing'
-        text = text.replace('/',' ').replace('…','').replace('”','').replace('_',' ')
+        text = text.replace('/',' ').replace('…',' ').replace('”','').replace('_',' ')
         words = remove_decimals_from_digits(text)
         words = words.lower().translate(str.maketrans('', '', punctations))
         
@@ -330,9 +336,9 @@ def get_cleaned_list_of_strings(listOfStrings, stemm = False, stemm_by_nltk=Fals
         output_text.append(text_without_stopwords)
     return output_text
 
-def get_array_of_words(listOfStrings):
+def get_array_of_words_from_list_of_text(list_of_text):
     _list = list()
-    for text in listOfStrings:
+    for text in list_of_text:
         text = text.lower()
         sentences = text.split()
         for words in sentences:
@@ -342,6 +348,17 @@ def get_array_of_words(listOfStrings):
     word_array = np.empty(shape=len(_list), dtype=object)
     for x in range(len(_list)):
         word_array[x] = _list[x][0]
+    return word_array
+
+def get_array_of_words_from_list_of_lists_of_sentences(list_of_lists_of_sentences):
+    _list = list()
+    for sent in list_of_lists_of_sentences:
+        for word in sent:
+            word = word.lower()
+            _list.append(word)
+    word_array = np.empty(shape=len(_list), dtype=object)
+    for x in range(len(_list)):
+        word_array[x] = _list[x]
     return word_array
 
 def get_stemmed_strings_as_nltk_SnowballStemmer(listOfStrings, ignore_stopwords = True):
@@ -480,6 +497,35 @@ def get_data_list_from_main_dict(main_dict, stemm=True, return_corpus_sent=False
         data_list.append(tmp_patient_text)
     return data_list, corpus_sentenses, corpus_sentenses_tokenized
 
+### Function harcoded to fit the swedish news corpus
+def get_stemmed_SwNews_corpus(corpus):
+    from nltk import word_tokenize
+    stemmer = SnowballStemmer("swedish", ignore_stopwords = True)
+    corpus_sentenses_tokenized = list()
+    for sent in corpus:
+        tmp_text = ' '.join(sent)
+        output_text = list()
+        text = tmp_text.replace('/',' ').replace('…','').replace('”','').replace('_',' ')
+        words = remove_decimals_from_digits(text)
+        words = words.lower().translate(str.maketrans('', '', punctations))
+
+        words = words.split()
+        words = remove_digits_at_start(words)
+        words_without_stopwords = [word for word in words if word not in stopwords]
+        words = words_without_stopwords
+        words = [stem(word) for word in words_without_stopwords]
+        text_without_stopwords = " ".join(words)
+        output_text.append(text_without_stopwords)
+        cleaned_text_list = output_text
+        for sent_tmp in cleaned_text_list:
+            temp = list()
+            for word in word_tokenize(sent_tmp):
+                temp.append(word)
+            corpus_sentenses_tokenized.append(temp)
+                    
+    return corpus_sentenses_tokenized
+
+### Functions about loading and saving
 def write_dict_as_json_file(dict_toBe_saved, file_path = None):
     import json
     
@@ -530,3 +576,17 @@ def load_list_from_json_file(file_path=None):
     
     return loaded_list
     
+def load_swedishNews_corpus_and_save_locally(file_path=None):
+    if file_path is None:
+        file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/saved_stuff/corpus/corpus_swedishNews_tokenized"
+    from datasets import load_dataset
+    dataset = load_dataset("swedish_ner_corpus")
+    corpus_swedishNews_tokenized = list()
+    for value in dataset['train']:
+        corpus_swedishNews_tokenized.append(value['tokens'])
+    for value in dataset['test']:
+        corpus_swedishNews_tokenized.append(value['tokens'])
+    write_list_as_json_file(corpus_swedishNews_tokenized, file_path=file_path)
+
+        
+   
