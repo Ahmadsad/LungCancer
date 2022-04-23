@@ -16,10 +16,11 @@ Function for getting data frames and cleaning/removing patients and features
 """
 def get_exL_df(stringPath, password=None, sheetNum=0):
     if password is not None:
-        xlwb = xlApp.Workbooks.Open(stringPath, False, True, None, password)
+        xlwb = xlApp.Workbooks.Open(stringPath, ReadOnly=True, Password=password)
     else:
-        xlwb = xlApp.Workbooks.Open(stringPath, False, True, None)
+        xlwb = xlApp.Workbooks.Open(stringPath, ReadOnly=True)
     dataFrame = pd.DataFrame(xlwb.Sheets(sheetNum).UsedRange())
+    xlwb.Close()
     dataFrame.columns = dataFrame.iloc[0,:]
     return dataFrame
 
@@ -40,21 +41,11 @@ def get_cleaned_katInfo_df(stringPath):
     return katInfoDF
 
 def get_labels_and_indices_unlabeled_patients(rawDataFrame):
-    labels = list(rawDataFrame['Lungcancer_Num'])[1:]
-    study1_labels = list(rawDataFrame['STUDY_1'])[1:]
+    rawDataFrame = rawDataFrame.loc[ ( (rawDataFrame['Lungcancer_Num'] == 1) | (rawDataFrame['Lungcancer_Num']==2 ) ) & (rawDataFrame['STUDY_1']==1) ]
+    rawDataFrame.index = range(1,len(rawDataFrame)+1,1)
     
-    label_list = list()
-    removed_indices = list()
-    for ind in range(0, len(labels)):
-        value = labels[ind]
-        study1_value = study1_labels[ind]
-        if ((value == 1.0 or value == 2.0) and study1_value == 1):
-            label_list.append(value)
-        else:
-            removed_indices.append(ind+1)
-
-    rawDataFrame = rawDataFrame.drop(labels=removed_indices, axis=0, inplace=False)
-    return rawDataFrame, label_list, removed_indices
+    labels = rawDataFrame['Lungcancer_Num']
+    return rawDataFrame, labels
 
 def get_dataframe_without_cols(dataFrame, columns_tobe_removed=None, remove_cols_with_dates=False):
     if columns_tobe_removed is None:
@@ -67,49 +58,59 @@ def get_dataframe_without_cols(dataFrame, columns_tobe_removed=None, remove_cols
                                 "APPETITE_TASTE_EATING", "SMELL", "FEVER", "OTHER_CHANGES", "CURRENT_HEALTH_EORTC"]
         if remove_cols_with_dates:
                 columns_tobe_removed = columns_tobe_removed + get_cols_with_dates(dataFrame)
-        try:
-            dataFrame = dataFrame.drop(labels=columns_tobe_removed, axis=1, inplace=False)
-        except: # if the labels of the columns in the data frame are not corrected, see first raw, set first raw as column names
-            dataFrame.columns = dataFrame.iloc[0,:]
-            dataFrame = dataFrame.drop(labels = columns_tobe_removed, axis=1, inplace=False)
-        return dataFrame
 
-def get_dates_in_days(rawDataFrame, referens_date_col=None):
-    if referens_date_col is None:
-        referens_date_col = list(rawDataFrame["InterviewDate"])
-    else:
-        referens_date_col = list(rawDataFrame[referens_date_col])
+        return dataFrame.drop(labels=columns_tobe_removed, axis=1, inplace=False)
+        
+def get_dataframe_with_specific_cols(dataFrame, columns_tobe_keeped=None):
+    if columns_tobe_keeped is None:
+        columns_tobe_keeped = ['Patient',
+            'Q9', 'Q5', 'Gender', 'Age', 'Q7e', 'Q7j', 'Q6', 'Br_5', 'Br_7', 'Br_12', 'Br_21', 'Br_29', 'Br_30', 'Br_31', 'Br_33', 'Br_35',
+            'Co_3', 'Co_4', 'Co_5', 'Co_6', 'Co_7', 'Co_8', 'Co_10', 'Co_11', 'Co_29', 'Co_35', 'Co_63', 'Co_64', 'Co_68',
+            'Ph_3', 'Ph_6', 'Ph_15', 'Ph_24', 'Ph_25', 
+            'Pa_3', 'Pa_8', 'Pa_9', 'Pa_67', 'Pa_201', 'Pa_204', 'Pa_10', 'Pa_11', 'Pa_12', 'Pa_14', 'Pa_16', 'Pa_17', 'Pa_18', 'Pa_27', 'Pa_39',
+            'Pa_49', 'Pa_207', 'Pa_210', 'Pa_213', 'Pa_223', 'Pa_227',
+            'Fa_3', 'Fa_4', 'Fa_11', 'Vo_1', 'Vo_2', 'Vo_6', 'App_1', 'App_2', 'App_5', 'Fe_1', 'Fe_4', 'Fe_13', 'Sm_1', 'Sm_2', 'Sm_3',
+            'Oth_1', 'Oth_10', 'Oth_13', 'Oth_19'
+            ]
+    # dataFrame.columns = dataFrame.iloc[0,:]
     
-    date_cols = get_cols_with_dates(rawDataFrame)
+    return dataFrame[columns_tobe_keeped]
+
+def get_dates_in_days(rawDataFrame, referens_date_col=None, automate_extract_cols_with_dates=True):
+    if referens_date_col is None:
+        referens_date_col = "InterviewDate"
+    else:
+        referens_date_col = referens_date_col
+    if automate_extract_cols_with_dates:
+        date_cols = get_cols_with_dates(rawDataFrame)
+    else:
+        date_cols = list(rawDataFrame.columns)
+        
     # put the referense last, to be subtracted lastly
-    if referens_date_col[0] in date_cols:
-        date_cols.remove(referens_date_col[0])
-        date_cols.insert(len(date_cols), referens_date_col[0])
+    date_cols.remove(referens_date_col)
+    date_cols.insert(len(date_cols), referens_date_col)
 
     # get corretly formed date list as reference
-    referens_dates_list = get_converted_to_correct_form_datesList(referens_date_col);
+    referens_dates_list = get_converted_to_correct_form_datesList(list(rawDataFrame[referens_date_col]));
 
     for date_col in date_cols:
-        
         if date_col == "PADdatum":
-            current_col = list(rawDataFrame['PADdatum'][1:].astype('str'))
+            current_col = list(rawDataFrame['PADdatum'][0:].astype('str'))
             for idx in range(0, len(current_col)):
                 tmp = ""
                 for x in current_col[idx].split():
                     if x.isdigit():
                         tmp = tmp + str(x)
                 current_col[idx] = tmp    
-            rawDataFrame[date_col][1:] = current_col
+            rawDataFrame[date_col][0:] = current_col
             
         # get a specific date column in correct form and as list
         dates_list = get_converted_to_correct_form_datesList(list(rawDataFrame[date_col]));
-
-        for idx in range(1,len(rawDataFrame[date_col])):
-            if dates_list[idx] != '#NULL!':
-                try:
-                    dates_list[idx] =  (referens_dates_list[idx] - dates_list[idx]).days;
-                except:
-                    dates_list[idx] = dates_list[idx]
+        for idx in range(0,len(rawDataFrame[date_col])):
+            try:
+                dates_list[idx] =  (referens_dates_list[idx] - dates_list[idx]).days;
+            except:
+                dates_list[idx] = dates_list[idx]
 
         rawDataFrame[date_col] = dates_list          
     return rawDataFrame
@@ -117,7 +118,7 @@ def get_dates_in_days(rawDataFrame, referens_date_col=None):
 def get_cols_with_dates(rawDataFrame, num_cols=None):
     # other columns with dates but word date/datum not mentioned in the column name or description
     date_cols = ["Breathe_46", "V3", "V3_Ph_1", "V3_Pain", "V3_Fa_1", "V3_Vo", "V3_Sm", "Fever_2", "Fever_5", "Fever_8",
-                        "Fever_11", "Fever_14", "Fever_17", "Fever_20", "Fever_23", "Fever_24", "Otherchanges_2", "Otherchanges_5", 
+                        "Fever_11", "Fever_14", "Fever_17", "Fever_20", "Fever_24", "Otherchanges_2", "Otherchanges_5", 
                         "Otherchanges_8", "Otherchanges_11", "Otherchanges_14", "Otherchanges_17", "Otherchanges_20", "Otherchanges_23",
                         "Otherchanges_26", "Otherchanges_30", "Otherchanges_34", "Otherchanges_38"]
     for col in rawDataFrame.columns:
@@ -130,8 +131,8 @@ def get_cols_with_dates(rawDataFrame, num_cols=None):
     
 def get_converted_to_correct_form_datesList(dates_list):
     dates_list = list(dates_list)
-    for idx in range(1,len(dates_list)):
-        if dates_list[idx] != "#NULL!":
+    for idx in range(0,len(dates_list)):
+        if not pd.isna(dates_list[idx]):
             try:
                 dates_list[idx] = pd.to_datetime(dates_list[idx], format='%y%m%d', errors='ignore');
                 dates_list[idx] = pd.to_datetime(dates_list[idx], errors='ignore');
@@ -225,7 +226,7 @@ def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=Non
     # dont need patient number as feature start at 1
     features = list(raw_DF.columns)[1:]
     # start the loop at 1 to account for the first row with labels and ques names
-    for patient_ind in range(1, n):
+    for patient_ind in range(0, n):
         ind_ques = 0
         count_removed_features = 0 
         
@@ -280,7 +281,7 @@ def get_dict_of_questions_answers(raw_DF, dataInfoDF, katInfoDF, amount_data=Non
             ind_ques = ind_ques + 1
         main_dict[str(int(raw_DF.iloc[patient_ind,0]))] = tmp_patient_dict
         tmp_patient_dict = dict()
-        # add 1 for disregarding the first row, in 
+
         list_count_removed_features.append((patient_ind, count_removed_features))  
     return main_dict, list_count_removed_features
 
@@ -335,6 +336,23 @@ def load_list_from_json_file(file_path=None):
     
     return loaded_list
     
+def save_data_frame(data_frame, as_xlsx_or_csv='xlsx', file_path=None):
+    if file_path is None:
+        file_path='C:/Users/a7mad/Desktop/MEX/PekLung/saved_data_frame'
+    if as_xlsx_or_csv=='xlsx':
+        data_frame.to_excel(file_path + '.xlsx')
+    else:
+        data_frame.to_csv(file_path+ '.csv')
+
+def load_data_frame(as_xlsx_or_csv='xlsx', file_path=None):
+    if file_path is None:
+            file_path='C:/Users/a7mad/Desktop/MEX/PekLung/saved_data_frame'
+    if as_xlsx_or_csv=='xlsx':
+        return pd.read_csv(file_path + '.xlsx')
+    else:
+        return pd.read_csv(file_path+ '.csv')
+    
+
 def load_swedishNews_corpus_and_save_locally(file_path=None):
     if file_path is None:
         file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/saved_stuff/corpus/corpus_swedishNews_tokenized"
@@ -346,6 +364,3 @@ def load_swedishNews_corpus_and_save_locally(file_path=None):
     for value in dataset['test']:
         corpus_swedishNews_tokenized.append(value['tokens'])
     write_list_as_json_file(corpus_swedishNews_tokenized, file_path=file_path)
-
-        
-   
