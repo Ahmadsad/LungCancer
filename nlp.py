@@ -28,9 +28,12 @@ __step2_suffixes = ("dd", "gd", "nn", "dt", "gt", "kt", "tt")
 __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 
 # remove question numbers like br_1, br2 and other words that does not add any meaning
+# __step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", 'm', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
+# 'f1',' f16', 'rö', 'lu', 'sl1sl29')
+# for tfidf:
 __step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm',
 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
-'f1',' f16', 'rö', 'lu', 'sl1sl29')
+'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex')
 
 TAG_RE = re.compile(r'<[^>]+>')
 def remove_tags(text):
@@ -106,12 +109,10 @@ def stem(word):
             
     # remove question numbers like br_1, br2... and other from suffix 4
     for suffix in __step4_suffix:
-        if suffix in word:
-            # indx = word.index(suffix)
-            if word == suffix or has_numbers(word):
-                # print(word)
-                word = ""
-                break
+        if word == suffix or has_numbers(word):
+            # print(word)
+            word = ""
+            break
     
     if word == " " or word == '-' or word=='intervjudatum p':
         word=""

@@ -15,7 +15,7 @@ def get_AUC_ROC_value(X_test, Y_test, model):
 #     print("AUC_ROC:", auc_roc)
     return auc_roc
 
-def get_train_test_split_data(data_list, labels, test_size=0.33, random_state=50, shuffle=False, stratify=None):
+def get_train_test_split_data(data_list, labels, test_size=0.3, random_state=42, shuffle=False, stratify=None):
     X_train, X_test, Y_train, Y_test = train_test_split(data_list, labels, shuffle=shuffle, stratify=stratify,
                                                   test_size=test_size, random_state=random_state)
     return (X_train, X_test, Y_train, Y_test)
@@ -41,7 +41,7 @@ def get_csr_matrix(vectorized_data_list, dtype="float"):
     except:
         return
     
-def get_classification_report(cls, test_data, test_labels, target_names=["cancer","no cancer"]):
+def get_classification_report(cls, test_data, test_labels, target_names=["no cancer", "cancer"]):
     return classification_report(test_labels, cls.predict(test_data), target_names=target_names)
 
 def get_shap_kernel_explainer_and_values(cls, training_data, test_data):
