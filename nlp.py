@@ -31,9 +31,19 @@ __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 # __step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", 'm', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
 # 'f1',' f16', 'rö', 'lu', 'sl1sl29')
 # for tfidf:
-__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm',
-'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
-'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex')
+__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm', 'intervjun',
+'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu','0','vet','ph','problem','bäst','sak','känd','fa','any','gör',
+'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex',
+'vilken vilk','vilken', 'vilk', 'beskriv', 'tid', 'tillkommit','jämför','idag','lad',
+'följ','först','ställning','besvär','förändring','oförändr', 'märk','upplev','gäll', 'haft','ändrat')
+
+age_choices = ['under40year', '40to65year', '65to85year', 'uver85year']
+
+# step4_suffix = ["br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm', 
+# 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
+# 'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex',
+#                  'vilken vilk', 'vilk', 'beskriv', 'tid', 'intervjun', 'tillkommit','jämför','idag','lad',
+#                  'besvär','förändring','oförändr', 'märk','upplev','gäll', 'haft']
 
 TAG_RE = re.compile(r'<[^>]+>')
 def remove_tags(text):
@@ -109,13 +119,15 @@ def stem(word):
             
     # remove question numbers like br_1, br2... and other from suffix 4
     for suffix in __step4_suffix:
-        if word == suffix or has_numbers(word):
-            # print(word)
-            word = ""
-            break
+        if (suffix in word) and (word not in age_choices):
+
+            if word == suffix or has_numbers(word):
+                word = ""
+                break
     
-    if word == " " or word == '-' or word=='intervjudatum p':
-        word=""
+#     if word == " " or word == '-' or word=='intervjudatum p':
+#         print(word)
+#         word=""
     return word
 
 def _r1_scandinavian(word, vowels):
@@ -168,6 +180,7 @@ def get_stemmed_corpus(corpus, stemm=False, stemm_by_nltk=False, nltk_lang='swed
             word = word.lower()
             word = handel_removing_digits(word).replace('_', ' ').replace('/',' ')
             word = word.translate(str.maketrans('', '', punctations)).replace('…','').replace('”','')
+            
             if stemm:
                 word = stem(word)
             if word:
@@ -217,18 +230,35 @@ def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False,
     for text in listOfStrings:
         if text is None: 
             text = ''
-        words = text.split()
+        words = re.split("\s|/|_|[,.]", text)
         words[0] = remove_digits_at_start(words[0])
-
         tmp = list()
         for word in words:
             word = word.lower()
             word = handel_removing_digits(word).replace('_', ' ').replace('/',' ')
+
             word = word.translate(str.maketrans('', '', punctations)).replace('…','').replace('”','')
-            if stemm:
-                word = stem(word)
+            
+            if stemm and word:
+#                 print("0", word)
+                word=stem(word)
+#                 print("1", word)
                 if word:
+#                     print("2", word)
                     tmp.append(word)
+
+#                 for suffix in step4_suffix:
+#                     if word == suffix:
+#                         print(word)
+#                         break
+#                     else:
+#                         word = stem(word)
+#                         break
+                
+#                 if word:
+#                     tmp.append(word)
+#                     print(tmp)
+#         print(tmp)
         words = tmp
         if stemm_by_nltk:
             words = [stemmer.stem(word) for word in words if word not in (stop)]

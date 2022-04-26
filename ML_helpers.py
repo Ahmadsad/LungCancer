@@ -4,6 +4,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import csr_matrix
 
 from sklearn.metrics import classification_report
+from sklearn import preprocessing
 # from lime import lime_tabular
 
 import shap

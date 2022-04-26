@@ -140,6 +140,15 @@ def get_converted_to_correct_form_datesList(dates_list):
                 dates_list[idx] = dates_list[idx]
     return dates_list
 
+def get_clearedNA_dataFram(dataFrame):
+    dataFrame = dataFrame[dataFrame != -2146826288]
+    dataFrame = dataFrame[dataFrame != '#NULL!']
+    dataFrame = dataFrame[dataFrame != 'None']
+    dataFrame = dataFrame.dropna(axis=1)
+    print("remaining columns: ",len(dataFrame.columns))
+
+    return dataFrame
+
 def get_dict_of_dataInfoDF(dataFrame):
     _dict = dict()
     list_of_questions = dataFrame['Label'].tolist()
