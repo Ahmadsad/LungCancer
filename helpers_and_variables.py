@@ -337,7 +337,7 @@ def write_list_as_json_file(list_toBe_saved, file_path=None):
 def load_list_from_json_file(file_path=None):
     import json
     if file_path==None:
-        file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels.json"
+        file_path = "C:/Users/a7mad/Desktop/MEX/PekLung/labels1_2.json"
     else:
         file_path = file_path + ".json"
     with open(file_path, 'r') as f:

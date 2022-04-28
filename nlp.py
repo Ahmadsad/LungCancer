@@ -27,23 +27,21 @@ __step1_2_suffixes = ("vuxen", "benägen","mogen","omogen","abdomen",
 __step2_suffixes = ("dd", "gd", "nn", "dt", "gt", "kt", "tt")
 __step3_suffixes = ("fullt", "l\xF6st", "els", "lig", "ig")
 
-# remove question numbers like br_1, br2 and other words that does not add any meaning
-# __step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", 'm', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
-# 'f1',' f16', 'rö', 'lu', 'sl1sl29')
+
+__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing",  'm',  'mm', 'ca', '1fö', 'fö', 'dat',
+                  'lu', '1lu','9lu','0','vet','ph','fa','any','gör', 'få', 't', 'ex','f1',' f16', 'rö', 'lu',
+                  'sl1sl29', 'ang', '-', 'börj')
 # for tfidf:
-__step4_suffix = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm', 'intervjun',
-'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu','0','vet','ph','problem','bäst','sak','känd','fa','any','gör',
-'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex',
-'vilken vilk','vilken', 'vilk', 'beskriv', 'tid', 'tillkommit','jämför','idag','lad',
-'följ','först','ställning','besvär','förändring','oförändr', 'märk','upplev','gäll', 'haft','ändrat')
+__step4_suffix1 = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing",  'm',  'mm', 'ca', '1fö', 'fö', 'dat',
+                  'lu', '1lu','9lu','0','vet','ph','fa','any','gör', 'få', 't', 'ex','f1',' f16', 'rö', 'lu',
+                  'sl1sl29','ang', '-', 'börj', 'år', "datum", "välj", "intervjudatum", 'intervjun','börj', 'ang',
+                   'intervju', 'alternativ','fler','tidigare','problem','bäst','sak','känd', 'tyck', 'andr', 'mer',
+                   'åren', 'för', 'gång','dag', 'sen', 'minst', 'tex', 'läk', 'sagt', 'vilken vilk','vilken', 'vilk',
+                   'beskriv', 'ja','tid', 'tillkommit','jämför','idag','lad','följ','först','ställning','besvär','förändring',
+                   'oförändr', 'märk','upplev','gäll', 'haft','ändrat')
 
 age_choices = ['under40year', '40to65year', '65to85year', 'uver85year']
 
-# step4_suffix = ["br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing", "datum", "välj", "intervjudatum", 'm', 
-# 'börj', 'ang',  'intervju', 'alternativ', 'fler', 'tidigare', 'mm', 'ca', '1fö', 'fö', 'dat', 'lu', '1lu', '9lu',
-# 'f1',' f16', 'rö', 'lu', 'sl1sl29', 'år', 'åren', 'för', 'dag', 'sen', 'minst', 'tex',
-#                  'vilken vilk', 'vilk', 'beskriv', 'tid', 'intervjun', 'tillkommit','jämför','idag','lad',
-#                  'besvär','förändring','oförändr', 'märk','upplev','gäll', 'haft']
 
 TAG_RE = re.compile(r'<[^>]+>')
 def remove_tags(text):
@@ -71,7 +69,7 @@ def remove_digits_at_start(inputString):
         inputString = re.sub('[\d]+', '', inputString)
     return inputString
 
-def stem(word):
+def stem(word, without_digits=False, suffix_41=False):
     """
     Stem a Swedish word and return the stemmed form.
     :param word: The word that is stemmed.
@@ -79,7 +77,10 @@ def stem(word):
     :return: The stemmed form.
     :rtype: unicode
     """
-    # word = word.lower()
+    if suffix_41:
+        step4_suffix = __step4_suffix1
+    else:
+        step4_suffix = __step4_suffix
 
     if word in stopwords_swedish: 
         return ""
@@ -118,16 +119,15 @@ def stem(word):
             break
             
     # remove question numbers like br_1, br2... and other from suffix 4
-    for suffix in __step4_suffix:
+    for suffix in step4_suffix:
         if (suffix in word) and (word not in age_choices):
-
             if word == suffix or has_numbers(word):
                 word = ""
                 break
     
-#     if word == " " or word == '-' or word=='intervjudatum p':
-#         print(word)
-#         word=""
+    if (all(char.isdigit() for char in word)) and (word !='') and (without_digits):
+        word = ""
+
     return word
 
 def _r1_scandinavian(word, vowels):
@@ -166,7 +166,7 @@ def has_numbers(inputString):
 
 
 ### Function to fit the external corpuses
-def get_stemmed_corpus(corpus, stemm=False, stemm_by_nltk=False, nltk_lang='swedish'):
+def get_stemmed_corpus(corpus, stemm=False, stemm_by_nltk=False, nltk_lang='swedish', without_digits=False, suffix_41=False):
     if stemm_by_nltk:
         stop = stopwords.words(nltk_lang)
         stemmer = SnowballStemmer(nltk_lang, ignore_stopwords = False)
@@ -182,7 +182,7 @@ def get_stemmed_corpus(corpus, stemm=False, stemm_by_nltk=False, nltk_lang='swed
             word = word.translate(str.maketrans('', '', punctations)).replace('…','').replace('”','')
             
             if stemm:
-                word = stem(word)
+                word = stem(word, without_digits=without_digits, suffix_41=suffix_41)
             if word:
                 tmp.append(word)
         words = tmp
@@ -195,7 +195,7 @@ def get_stemmed_corpus(corpus, stemm=False, stemm_by_nltk=False, nltk_lang='swed
 
     return corpus_sentenses_tokenized
 
-def get_data_from_main_dict(main_dict, stemm=True, return_corpus_sent=False, return_corpus_token=False):
+def get_data_from_main_dict(main_dict, stemm=True, return_corpus_sent=False, return_corpus_token=False, without_digits=False, suffix_41=False):
     from nltk import word_tokenize
     data_list = list()
     corpus_sentenses = list()
@@ -203,7 +203,8 @@ def get_data_from_main_dict(main_dict, stemm=True, return_corpus_sent=False, ret
 
     for key in main_dict.keys():
         patient_text = list(main_dict[key].values())
-        patient_cleaned_text = get_cleaned_list_of_strings(patient_text, stemm=stemm)
+        patient_cleaned_text = get_cleaned_list_of_strings(patient_text, stemm=stemm, without_digits=without_digits,
+                                                           suffix_41=suffix_41)
         
         if return_corpus_sent or return_corpus_token:
             for sent in patient_cleaned_text:
@@ -220,7 +221,7 @@ def get_data_from_main_dict(main_dict, stemm=True, return_corpus_sent=False, ret
         data_list.append(tmp_patient_text)
     return data_list, corpus_sentenses, corpus_sentenses_tokenized
 
-def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False, nltk_lang='swedish'):
+def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False, nltk_lang='swedish', without_digits=False, suffix_41=False):
     if stemm_by_nltk:
         stop = stopwords.words(nltk_lang)
         stemmer = SnowballStemmer(nltk_lang, ignore_stopwords = False)
@@ -236,29 +237,13 @@ def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False,
         for word in words:
             word = word.lower()
             word = handel_removing_digits(word).replace('_', ' ').replace('/',' ')
-
             word = word.translate(str.maketrans('', '', punctations)).replace('…','').replace('”','')
-            
+
             if stemm and word:
-#                 print("0", word)
-                word=stem(word)
-#                 print("1", word)
+                word=stem(word, without_digits=without_digits, suffix_41=suffix_41)
                 if word:
-#                     print("2", word)
                     tmp.append(word)
 
-#                 for suffix in step4_suffix:
-#                     if word == suffix:
-#                         print(word)
-#                         break
-#                     else:
-#                         word = stem(word)
-#                         break
-                
-#                 if word:
-#                     tmp.append(word)
-#                     print(tmp)
-#         print(tmp)
         words = tmp
         if stemm_by_nltk:
             words = [stemmer.stem(word) for word in words if word not in (stop)]
@@ -267,27 +252,3 @@ def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False,
             words = " ".join(words)
             output_text.append(words)
     return output_text
-# def get_stemmed_strings_as_nltk_SnowballStemmer(listOfStrings, ignore_stopwords = True):
-#     from nltk.stem import SnowballStemmer
-#     stemmer = SnowballStemmer("swedish", ignore_stopwords = ignore_stopwords)
-#     output_text_after_Stem = list()
-
-#     for text in listOfStrings:
-#         words = text.split()
-#         words_after_stem = [stemmer.stem(word) for word in words]
-#         text_after_stem = " ".join(words_after_stem)
-#         output_text_after_Stem.append(text_after_stem)
-        
-#     return output_text_after_Stem
-
-# def get_tokenized_strings_by_nltk(listOfStrings):
-#     from nltk import word_tokenize
-#     output_words_after_tokenize = list()
-
-#     for text in listOfStrings:
-#         words = text.split()
-#         words_after_tokenize = [word_tokenize(word) for word in words]
-#         for word in words_after_tokenize:
-#             output_words_after_tokenize.append(word)
-
-#     return output_words_after_tokenize
