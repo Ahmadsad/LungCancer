@@ -38,7 +38,7 @@ __step4_suffix1 = ("br", "co", "sl", "pa", "q9", "jmf", "11fö", "ing",  'm',  '
                    'intervju', 'alternativ','fler','tidigare','problem','bäst','sak','känd', 'tyck', 'andr', 'mer',
                    'åren', 'för', 'gång','dag', 'sen', 'minst', 'tex', 'läk', 'sagt', 'vilken vilk','vilken', 'vilk',
                    'beskriv', 'ja','tid', 'tillkommit','jämför','idag','lad','följ','först','ställning','besvär','förändring',
-                   'oförändr', 'märk','upplev','gäll', 'haft','ändrat')
+                   'oförändr', 'märk','upplev','gäll', 'haft','ändrat', 'kategorin')
 
 age_choices = ['under40year', '40to65year', '65to85year', 'uver85year']
 
@@ -84,8 +84,8 @@ def stem(word, without_digits=False, suffix_41=False):
 
     if word in stopwords_swedish: 
         return ""
-    if word=="00":
-        return "0"
+    if word=="00" or word=="0":
+        return ""
     r1 = _r1_scandinavian(word, __vowels)
 
     # STEP 1
@@ -243,6 +243,8 @@ def get_cleaned_list_of_strings(listOfStrings, stemm=False, stemm_by_nltk=False,
                 word=stem(word, without_digits=without_digits, suffix_41=suffix_41)
                 if word:
                     tmp.append(word)
+            elif not stemm:
+                tmp.append(word)
 
         words = tmp
         if stemm_by_nltk:

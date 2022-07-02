@@ -71,9 +71,7 @@ def get_dataframe_with_specific_cols(dataFrame, columns_tobe_keeped=None):
             'Pa_49', 'Pa_207', 'Pa_210', 'Pa_213', 'Pa_223', 'Pa_227',
             'Fa_3', 'Fa_4', 'Fa_11', 'Vo_1', 'Vo_2', 'Vo_6', 'App_1', 'App_2', 'App_5', 'Fe_1', 'Fe_4', 'Fe_13', 'Sm_1', 'Sm_2', 'Sm_3',
             'Oth_1', 'Oth_10', 'Oth_13', 'Oth_19'
-            ]
-    # dataFrame.columns = dataFrame.iloc[0,:]
-    
+            ]    
     return dataFrame[columns_tobe_keeped]
 
 def get_dates_in_days(rawDataFrame, referens_date_col=None, automate_extract_cols_with_dates=True):
